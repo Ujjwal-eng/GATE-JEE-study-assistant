@@ -14,6 +14,93 @@ st.set_page_config(
     layout="wide"
 )
 
+# --- CUSTOM CSS ---
+st.markdown("""
+<style>
+/* Main background */
+.stApp {
+    background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #0f0f23 100%);
+}
+
+/* Sidebar */
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #1e1e3f 0%, #16213e 100%);
+    border-right: 1px solid #3d3d7a;
+}
+
+/* Title styling */
+h1 {
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-size: 2.5rem !important;
+    font-weight: 800 !important;
+}
+
+/* Chat message bubbles */
+[data-testid="stChatMessage"] {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 15px;
+    padding: 10px;
+    margin: 8px 0;
+    backdrop-filter: blur(10px);
+}
+
+/* Process button */
+.stButton > button[kind="primary"] {
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    transition: transform 0.2s;
+}
+.stButton > button[kind="primary"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+}
+
+/* File uploader */
+[data-testid="stFileUploader"] {
+    background: rgba(255, 255, 255, 0.03);
+    border: 2px dashed #3d3d7a;
+    border-radius: 12px;
+    padding: 10px;
+}
+
+/* Chat input */
+[data-testid="stChatInput"] {
+    border: 1px solid #3d3d7a;
+    border-radius: 25px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* Success/info messages */
+.stSuccess {
+    background: rgba(0, 200, 100, 0.1);
+    border: 1px solid rgba(0, 200, 100, 0.3);
+    border-radius: 10px;
+}
+
+/* Expander (source pages) */
+[data-testid="stExpander"] {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid #3d3d7a;
+    border-radius: 10px;
+}
+
+/* Metrics */
+[data-testid="stMetric"] {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 10px;
+}
+</style>
+""", unsafe_allow_html=True)
+
 MAX_HISTORY = 20
 MAX_FILE_SIZE_MB = 10  # Only allow PDFs under 10MB
 
