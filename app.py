@@ -88,6 +88,22 @@ div[data-testid="stHorizontalBlock"] .stButton > button:hover {
     color: white;
     transform: translateY(-1px);
 }            
+            
+            /* Feedback buttons */
+button[data-testid="baseButton-secondary"] {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    color: #a0aec0;
+    font-size: 1rem;
+    padding: 0.2rem 0.8rem;
+    transition: all 0.2s;
+}
+button[data-testid="baseButton-secondary"]:hover {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.3);
+    color: white;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -266,6 +282,14 @@ else:
             "content": answer,
             "sources": source_docs
         })
+
+                # --- FEEDBACK BUTTONS ---
+        msg_index = len(st.session_state.chat_history) - 1
+        fb_col1, fb_col2, fb_spacer = st.columns([1, 1, 8])
+        if fb_col1.button("👍", key=f"up_{msg_index}", help="Good answer"):
+            st.toast("Thanks for the feedback! 🎉", icon="✅")
+        if fb_col2.button("👎", key=f"down_{msg_index}", help="Bad answer"):
+            st.toast("Got it — we'll try to improve!", icon="📝")
 
         if len(st.session_state.chat_history) > MAX_HISTORY:
             st.session_state.chat_history = st.session_state.chat_history[-MAX_HISTORY:]
