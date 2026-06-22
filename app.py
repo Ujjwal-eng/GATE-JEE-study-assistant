@@ -68,6 +68,26 @@ h1 {
     border-radius: 10px;
     padding: 10px;
 }
+
+/* Suggestion chips */
+div[data-testid="stHorizontalBlock"] .stButton > button {
+    background: rgba(102, 126, 234, 0.1);
+    border: 1px solid rgba(102, 126, 234, 0.4);
+    border-radius: 20px;
+    color: #a0aec0;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+    text-align: left;
+    white-space: normal;
+    height: auto;
+    padding: 0.5rem 1rem;
+}
+div[data-testid="stHorizontalBlock"] .stButton > button:hover {
+    background: rgba(102, 126, 234, 0.25);
+    border-color: #667eea;
+    color: white;
+    transform: translateY(-1px);
+}            
 </style>
 """, unsafe_allow_html=True)
 
@@ -188,6 +208,29 @@ if st.session_state.qa_chain is None:
         st.caption("Works with any PDF — upload specific chapters for best results")
 
 else:
+    # --- SUGGESTED QUESTIONS ---
+    if not st.session_state.chat_history:
+        st.markdown("#### 💡 Try asking...")
+        suggestions = [
+            "Summarize the key concepts in this document",
+            "What are the most important formulas mentioned?",
+            "Explain the hardest topic in simple terms",
+            "Give me 5 practice questions from this material",
+        ]
+        cols = st.columns(2)
+        for i, suggestion in enumerate(suggestions):
+            if cols[i % 2].button(suggestion, key=f"suggest_{i}", use_container_width=True):
+                st.session_state.chat_history.append({"role": "user", "content": suggestion})
+                with st.spinner("Searching your documents..."):
+                    source_docs = st.session_state.retriever.invoke(suggestion)
+                    answer = st.session_state.qa_chain.invoke(suggestion)
+                st.session_state.chat_history.append({
+                    "role": "assistant",
+                    "content": answer,
+                    "sources": source_docs
+                })
+                st.rerun()
+
     for message in st.session_state.chat_history:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
