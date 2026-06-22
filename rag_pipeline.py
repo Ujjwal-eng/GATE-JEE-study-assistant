@@ -6,31 +6,14 @@ from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
-import streamlit as st
-import hashlib
 import tempfile
 import os
+import hashlib
 
-MAX_PAGES = 50  # Max pages to process — keeps it under 10 seconds
+MAX_PAGES = 50
 
-def get_file_hash(uploaded_files):
-    hasher = hashlib.md5()
-    for f in uploaded_files:
-        hasher.update(f.name.encode())
-        hasher.update(str(f.size).encode())
-    return hasher.hexdigest()
-
-@st.cache_resource(show_spinner=False)
-def build_cached_vector_store(_cache_key, chunks_text):
-    """
-    Cache vector store by file hash.
-    Same file = instant reload, no reprocessing.
-    chunks_text is a tuple of strings for hashing purposes.
-    """
-    from langchain_core.documents import Document
-    chunks = [Document(page_content=t, metadata=m) for t, m in chunks_text]
-    embeddings = FastEmbedEmbeddings(model_name="BAAI/bge-small-en-v1.5")
-    return FAISS.from_documents(chunks, embeddings)
+def get_file_hash(uploaded_file):
+    return hashlib.md5(uploaded_file.getvalue()).hexdigest()
 
 def load_and_chunk_pdfs(uploaded_files):
     all_docs = []
@@ -41,21 +24,27 @@ def load_and_chunk_pdfs(uploaded_files):
 
         loader = PyPDFLoader(tmp_path)
         pages = loader.load()
-        os.unlink(tmp_path)
-
-        if len(pages) > MAX_PAGES:
-            pages = pages[:MAX_PAGES]
+        pages = pages[:MAX_PAGES]
 
         for page in pages:
             page.metadata["source_file"] = uploaded_file.name
 
         all_docs.extend(pages)
+        os.unlink(tmp_path)
 
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000,
         chunk_overlap=200
     )
-    return splitter.split_documents(all_docs)
+    chunks = splitter.split_documents(all_docs)
+    return chunks
+
+
+def build_vector_store(chunks):
+    embeddings = FastEmbedEmbeddings(model_name="BAAI/bge-small-en-v1.5")
+    vector_store = FAISS.from_documents(chunks, embeddings)
+    return vector_store
+
 
 def build_qa_chain(vector_store, groq_api_key):
     llm = ChatGroq(

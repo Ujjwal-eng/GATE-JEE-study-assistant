@@ -2,7 +2,7 @@ import streamlit as st
 import os
 from dotenv import load_dotenv
 from rag_pipeline import (
-    load_and_chunk_pdfs, build_cached_vector_store,
+    load_and_chunk_pdfs, build_vector_store,
     build_qa_chain, get_file_hash, MAX_PAGES
 )
 
@@ -14,21 +14,15 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- CUSTOM CSS ---
 st.markdown("""
 <style>
-/* Main background */
 .stApp {
     background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #0f0f23 100%);
 }
-
-/* Sidebar */
 [data-testid="stSidebar"] {
     background: linear-gradient(180deg, #1e1e3f 0%, #16213e 100%);
     border-right: 1px solid #3d3d7a;
 }
-
-/* Title styling */
 h1 {
     background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
     -webkit-background-clip: text;
@@ -36,8 +30,6 @@ h1 {
     font-size: 2.5rem !important;
     font-weight: 800 !important;
 }
-
-/* Chat message bubbles */
 [data-testid="stChatMessage"] {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -46,8 +38,6 @@ h1 {
     margin: 8px 0;
     backdrop-filter: blur(10px);
 }
-
-/* Process button */
 .stButton > button[kind="primary"] {
     background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
     border: none;
@@ -61,37 +51,17 @@ h1 {
     transform: translateY(-2px);
     box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
 }
-
-/* File uploader */
 [data-testid="stFileUploader"] {
     background: rgba(255, 255, 255, 0.03);
     border: 2px dashed #3d3d7a;
     border-radius: 12px;
     padding: 10px;
 }
-
-/* Chat input */
-[data-testid="stChatInput"] {
-    border: 1px solid #3d3d7a;
-    border-radius: 25px;
-    background: rgba(255, 255, 255, 0.05);
-}
-
-/* Success/info messages */
-.stSuccess {
-    background: rgba(0, 200, 100, 0.1);
-    border: 1px solid rgba(0, 200, 100, 0.3);
-    border-radius: 10px;
-}
-
-/* Expander (source pages) */
 [data-testid="stExpander"] {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid #3d3d7a;
     border-radius: 10px;
 }
-
-/* Metrics */
 [data-testid="stMetric"] {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255,255,255,0.1);
@@ -102,7 +72,7 @@ h1 {
 """, unsafe_allow_html=True)
 
 MAX_HISTORY = 20
-MAX_FILE_SIZE_MB = 10  # Only allow PDFs under 10MB
+MAX_FILE_SIZE_MB = 10
 
 groq_api_key = os.getenv("GROQ_API_KEY")
 if not groq_api_key:
@@ -112,7 +82,7 @@ if not groq_api_key:
         groq_api_key = ""
 
 if not groq_api_key:
-    st.error("⚠️ GROQ_API_KEY not found. Add it to your .env file or Streamlit Cloud Secrets.")
+    st.error("⚠️ GROQ_API_KEY not found.")
     st.stop()
 
 st.title("📚 GATE & JEE Study Assistant")
@@ -135,11 +105,10 @@ with st.sidebar:
         "Upload one or more PDFs",
         type=["pdf"],
         accept_multiple_files=True,
-        help=f"Upload PDFs under {MAX_FILE_SIZE_MB}MB each. Large textbooks should be split into chapters."
+        help=f"Upload PDFs under {MAX_FILE_SIZE_MB}MB each."
     )
 
     if uploaded_files:
-        # --- FILE SIZE CHECK ---
         oversized = []
         valid_files = []
         for f in uploaded_files:
@@ -151,9 +120,9 @@ with st.sidebar:
 
         if oversized:
             st.error(
-                f"These files exceed the {MAX_FILE_SIZE_MB}MB limit and will be skipped:\n\n"
+                f"Files over {MAX_FILE_SIZE_MB}MB will be skipped:\n\n"
                 + "\n".join(oversized)
-                + f"\n\n💡 Tip: Split large PDFs into chapters using ilovepdf.com"
+                + "\n\n💡 Tip: Split large PDFs at ilovepdf.com"
             )
 
         if valid_files:
@@ -161,44 +130,33 @@ with st.sidebar:
             st.info(f"📄 {len(valid_files)} file(s) ready — {total_mb:.1f}MB total")
 
             if st.button("⚡ Process PDFs", type="primary", use_container_width=True):
-                progress = st.progress(0)
-                status = st.empty()
+                progress_bar = st.progress(0, text="Reading PDFs...")
 
-                status.text("📖 Reading PDF pages...")
-                progress.progress(15)
+                progress_bar.progress(25, text="📖 Loading pages...")
                 chunks = load_and_chunk_pdfs(valid_files)
 
-                status.text(f"✂️ Split into {len(chunks)} chunks...")
-                progress.progress(35)
-
-                # Convert for caching
-                chunks_text = tuple(
-                    (c.page_content, c.metadata) for c in chunks
-                )
-                file_hash = get_file_hash(valid_files)
-
-                status.text("🧠 Building embeddings...")
-                progress.progress(60)
-                vector_store = build_cached_vector_store(file_hash, chunks_text)
+                progress_bar.progress(60, text="🧠 Building embeddings...")
+                vector_store = build_vector_store(chunks)
                 st.session_state.vector_store = vector_store
 
-                status.text("⚡ Setting up AI chain...")
-                progress.progress(85)
+                progress_bar.progress(85, text="⚙️ Setting up QA chain...")
                 st.session_state.qa_chain, st.session_state.retriever = build_qa_chain(
                     vector_store, groq_api_key
                 )
                 st.session_state.chat_history = []
 
-                progress.progress(100)
-                status.empty()
-                progress.empty()
-                st.success(f"✅ Ready! Indexed {len(chunks)} chunks from {len(valid_files)} file(s)")
+                progress_bar.progress(100, text="✅ Done!")
+
+                col1, col2 = st.columns(2)
+                col1.metric("📄 Chunks Created", len(chunks))
+                col2.metric("📁 PDFs Indexed", len(valid_files))
+                st.success("✅ Ready! Ask your first question →")
 
     st.divider()
     st.markdown("**How it works:**")
     st.markdown(
         f"1. Upload PDFs (max {MAX_FILE_SIZE_MB}MB each)\n"
-        f"2. Only first {MAX_PAGES} pages are indexed for speed\n"
+        f"2. Only first {MAX_PAGES} pages indexed\n"
         "3. Click Process\n"
         "4. Ask any question\n"
         "5. See answer + source page"
@@ -208,11 +166,13 @@ with st.sidebar:
         st.session_state.chat_history = []
         st.rerun()
 
+
 def format_page_number(page_num):
     try:
         return str(int(page_num) + 1)
     except (ValueError, TypeError):
         return "?"
+
 
 if st.session_state.qa_chain is None:
     st.info("👈 Upload and process your PDFs from the sidebar to start asking questions.")
@@ -226,6 +186,7 @@ if st.session_state.qa_chain is None:
     with col3:
         st.markdown("**📝 Any Study Material**")
         st.caption("Works with any PDF — upload specific chapters for best results")
+
 else:
     for message in st.session_state.chat_history:
         with st.chat_message(message["role"]):
